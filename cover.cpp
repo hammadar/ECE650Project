@@ -82,7 +82,7 @@ std::pair<bool, std::vector<int>> VCSolver::vc_cnf_sat(Graph g, int k) {
     size_t N = (size_t)g.vs();
     Minisat::Lit **lit = new Minisat::Lit* [N+1];
     for(size_t i = 1; i <= N; i++)
-        lit[i] = new Minisat::Lit[k];
+        lit[i] = new Minisat::Lit[k+1];
 
     std::unique_ptr<Minisat::Solver> solver(new Minisat::Solver());
     int nclauses = 0;
