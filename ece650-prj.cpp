@@ -5,6 +5,7 @@
 #include <pthread.h>
 
 #include <array>
+#include <execinfo.h>
 #include <vector>
 #include <utility>
 #include <iostream>
