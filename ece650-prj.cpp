@@ -1,11 +1,12 @@
 // Compile with c++ ece650-a5cpp -std=c++11 -o ece65 
 #include <time.h>
 #include <stdio.h>
+#include <signal.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <execinfo.h>
 
 #include <array>
-#include <execinfo.h>
 #include <vector>
 #include <utility>
 #include <iostream>
@@ -19,9 +20,9 @@
 
 void default_signal_handler(int sig) {
     void *buffer[15];
-    size_t size = backtrace(array, 15);
+    size_t size = backtrace(buffer, 15);
     fprintf(stderr, "Error: signal %d:\n", sig);
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    backtrace_symbols_fd(buffer, size, STDERR_FILENO);
     exit(1);
 }
 
@@ -66,12 +67,16 @@ int main(int argc, char** argv) {
     while(!std::cin.eof()) {
         
         Graph g = read_in();
+
+	if(!g.initialized())
+	    continue;
+
         std::array<std::pair<std::vector<int>, double>, 3> output = process_in_parallel(g, timeout_seconds);
         
         for(size_t i = 0; i < 3; i++) {
             if(benchmark_mode) {
                 if(output[i].second != -1)
-                    std::cout << std::fixed << std::setprecision(4) << output[i].second;
+                    std::cout << std::fixed << std::setprecision(6) << output[i].second;
                 else
                     std::cout << "timeout";
                 
@@ -81,18 +86,23 @@ int main(int argc, char** argv) {
                     std::cout << std::endl;
             } else {
                 std::cout << ALGO[i] << ": ";
-                std::sort(output[i].first.begin(), output[i].first.end());
-                for(size_t j = 0; j < output[i].first.size(); j++) {
-                    
-                    if(output[i].second >= 0)
-                        std::cout << output[i].first[j];
-                    else
-                        std::cout << "timeout";
 
-                    if (j < output[i].first.size() - 1)
-                        std::cout << ",";
+		if(output[i].second == -1) {
+		    
+		    std::cout << "timeout" << std::endl;
+
+		} else {
+		
+		    std::sort(output[i].first.begin(), output[i].first.end());
+		    for(size_t j = 0; j < output[i].first.size(); j++) {
+		        std::cout << output[i].first[j];
+
+		        if (j < output[i].first.size() - 1) {
+		    	    std::cout << ",";
+			}
+		    }
+		    std::cout << std::endl;
                 }
-                std::cout << std::endl;
             }
         }
     }
@@ -190,6 +200,7 @@ std::array<std::pair<std::vector<int>, double>, 3> process_in_parallel(const Gra
     struct thread_context ctx;
     ctx.mutex = &mutex;
     ctx.timeout = timeout;
+    ctx.count = 0;
     ctx.g = g;
     
     void* (*thread_run[])(void*) = { watchdog_thread, cnf_sat_vc_thread, approx_vc_1_thread, approx_vc_2_thread };
@@ -202,7 +213,6 @@ std::array<std::pair<std::vector<int>, double>, 3> process_in_parallel(const Gra
         
         void * retptr;
         pthread_join(ctx.thread[i], &retptr);
-        
         if(i >= 1 && retptr == PTHREAD_CANCELED) {
             output[i - 1] = std::make_pair(std::vector<int>(), -1); 
         }
@@ -217,7 +227,7 @@ std::array<std::pair<std::vector<int>, double>, 3> process_in_parallel(const Gra
 }
 
 double tdiff(struct timespec& t2, struct timespec& t1) {
-    double diff = (t2.tv_sec - t1.tv_sec) + (t2.tv_nsec - t1.tv_nsec)/1E9f;
+    double diff = (t2.tv_sec - t1.tv_sec) + (t2.tv_nsec - t1.tv_nsec)/1E9;
     return diff;
 }
 
@@ -237,33 +247,37 @@ void * cnf_sat_vc_thread (void *arg) {
 
     struct thread_context *ctx = (struct thread_context *)arg;
     std::pair<std::vector<int>, double> * output = new std::pair<std::vector<int>, double>{};
-    pthread_cleanup_push(cleanup_vc_thread, output);
     
+    int d;
+    pthread_cleanup_push(cleanup_vc_thread, output);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &d);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &d);
+
     clockid_t cid;
     struct timespec t1, t2;
-    pthread_getcpuclockid(pthread_self(), &cid);
-    
-    clock_gettime(cid, &t1);
-    output->first  = cnf_sat_vc_impl(ctx->g);
-    clock_gettime(cid, &t2);
-    output->second = tdiff(t2, t1);
+        pthread_getcpuclockid(pthread_self(), &cid);
+        
+        clock_gettime(cid, &t1);
+        output->first  = cnf_sat_vc_impl(ctx->g);
+        clock_gettime(cid, &t2);
+        output->second = tdiff(t2, t1);
 
-    pthread_mutex_lock(ctx->mutex);
-    ctx->count += 1;
-    if(ctx->count == 3) {
-        pthread_cancel(ctx->thread[WATCHDOG]);
+        pthread_mutex_lock(ctx->mutex);
+        ctx->count += 1;
+        if(ctx->count == 3) {
+            pthread_cancel(ctx->thread[WATCHDOG]);
+        }
+        pthread_mutex_unlock(ctx->mutex);
+
+        pthread_cleanup_pop(0);
+        pthread_exit(output);
     }
-    pthread_mutex_unlock(ctx->mutex);
-
-    pthread_cleanup_pop(0);
-    pthread_exit(output);
-}
 
 
-std::vector<int> approx_vc_1_impl(Graph& g) {
-    
-    VCSolver s;
-    std::pair<bool, std::vector<int>> result = s.vc_approx_1(g);
+    std::vector<int> approx_vc_1_impl(Graph& g) {
+        
+        VCSolver s;
+        std::pair<bool, std::vector<int>> result = s.vc_approx_1(g);
 
     if(result.first)
         return result.second;
@@ -276,8 +290,11 @@ void * approx_vc_1_thread (void *arg) {
     struct thread_context *ctx = (struct thread_context*)arg;
     std::pair<std::vector<int>, double> * output = new std::pair<std::vector<int>, double>{};
     
+    int d;
     pthread_cleanup_push(cleanup_vc_thread, output);
-
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &d);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &d);
+    
     clockid_t cid;
     struct timespec t1, t2;
     pthread_getcpuclockid(pthread_self(), &cid);
@@ -313,8 +330,12 @@ void * approx_vc_2_thread (void *arg) {
     
     struct thread_context *ctx = (struct thread_context*)arg;
     std::pair<std::vector<int>, double> * output = new std::pair<std::vector<int>, double>{};
-    pthread_cleanup_push(cleanup_vc_thread, output);
 
+    int d;
+    pthread_cleanup_push(cleanup_vc_thread, output);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &d);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &d);
+    
     clockid_t cid;
     struct timespec t1, t2;
     pthread_getcpuclockid(pthread_self(), &cid);
@@ -337,19 +358,25 @@ void * approx_vc_2_thread (void *arg) {
 
 void * watchdog_thread (void *arg) {
     
+    int d;
     struct thread_context *ctx = (struct thread_context *)arg;
+    
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &d);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &d);
+
     sleep(ctx->timeout);
 
     pthread_mutex_lock(ctx->mutex);
-    for(int i = 1; i < 4; i++)
-        pthread_cancel(ctx->thread[i]);
+    for(int i = 1; i < 4; i++) {
+	pthread_cancel(ctx->thread[i]);
+    }
     pthread_mutex_unlock(ctx->mutex);
     
     pthread_exit(NULL);
 }
 
 void cleanup_vc_thread(void *arg) {
-     
+    
     std::pair<std::vector<int>, double> *resultptr = 
         static_cast<std::pair<std::vector<int>, double>*>(arg);
 
