@@ -1,7 +1,8 @@
 // Compile with c++ ece650-a5cpp -std=c++11 -o ece65 
-#include <pthread.h>
-#include <unistd.h>
 #include <time.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <pthread.h>
 
 #include <array>
 #include <vector>
@@ -14,6 +15,14 @@
 #include "parse.hpp"
 #include "graph.hpp"
 #include "cover.hpp"
+
+void default_signal_handler(int sig) {
+    void *buffer[15];
+    size_t size = backtrace(array, 15);
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(1);
+}
 
 const int WATCHDOG      = 0;
 const int CNF_SAT_VC    = 1;
@@ -29,7 +38,6 @@ struct thread_context {
     uint                   timeout;
     Graph                        g;
 };
-
 std::string ALGO[] = { "CNF-SAT-VC", "APPROX-VC-1", "APPROX-VC-2" };
 
 void        cleanup_vc_thread(void* arg);
@@ -47,9 +55,10 @@ void parse_arguments(int argc, char* argv[], bool&, int& timeout);
 std::array<std::pair<std::vector<int>, double>, 3> process_in_parallel(const Graph& g, int timeout);
 
 int main(int argc, char** argv) {
+    
+    signal(SIGSEGV, default_signal_handler);
 
     bool benchmark_mode = false;
-    
     int  timeout_seconds = 120;
     parse_arguments(argc, argv, benchmark_mode, timeout_seconds);
     
