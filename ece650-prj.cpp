@@ -58,7 +58,7 @@ std::array<std::pair<std::vector<int>, double>, 3> process_in_parallel(const Gra
 
 int main(int argc, char** argv) {
     
-    //signal(SIGSEGV, default_signal_handler);
+    signal(SIGSEGV, default_signal_handler);
 
     bool benchmark_mode = false;
     int  timeout_seconds = 120;
