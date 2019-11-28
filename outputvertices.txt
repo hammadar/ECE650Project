@@ -28,3 +28,13 @@ Graph 6
 Graph 7
 Graph 8
 Graph 9
+Graph 0
+Graph 1
+Graph 2
+Graph 3
+Graph 4
+Graph 5
+Graph 6
+Graph 7
+Graph 8
+Graph 9
