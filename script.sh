@@ -15,7 +15,7 @@ do
 
 		for ((counter=0; counter<10; counter++))
 		do
-			graph.txt | build/./ece650-prj -b -t 60 >> output$vertex.txt
+			cat graph.txt | build/./ece650-prj -b -t 60 >> output$vertex.txt
 		done
 	done
 	git add output$vertex.txt
