@@ -38,3 +38,23 @@ Vvertices G8
 Usage: ./graphGen <# vertices>
 Vvertices G9
 Usage: ./graphGen <# vertices>
+Vvertices G0
+Usage: ./graphGen <# vertices>
+Vvertices G1
+Usage: ./graphGen <# vertices>
+Vvertices G2
+Usage: ./graphGen <# vertices>
+Vvertices G3
+Usage: ./graphGen <# vertices>
+Vvertices G4
+Usage: ./graphGen <# vertices>
+Vvertices G5
+Usage: ./graphGen <# vertices>
+Vvertices G6
+Usage: ./graphGen <# vertices>
+Vvertices G7
+Usage: ./graphGen <# vertices>
+Vvertices G8
+Usage: ./graphGen <# vertices>
+Vvertices G9
+Usage: ./graphGen <# vertices>
