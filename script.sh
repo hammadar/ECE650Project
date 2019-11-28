@@ -9,7 +9,7 @@ do
 
 	for ((counter=0; counter<10; counter++))
 	do
-		./graphGen $vertex | build/./ece650-prj -b >> output.txt
+		./graphGen $vertex | build/./ece650-prj -b -t 60 >> output.txt
 
 	done
 done

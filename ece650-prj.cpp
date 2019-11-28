@@ -68,8 +68,8 @@ int main(int argc, char** argv) {
         
         Graph g = read_in();
 
-	if(!g.initialized())
-	    continue;
+	    if(!g.initialized())
+	        continue;
 
         std::array<std::pair<std::vector<int>, double>, 3> output = process_in_parallel(g, timeout_seconds);
         
@@ -80,28 +80,42 @@ int main(int argc, char** argv) {
                 else
                     std::cout << "timeout";
                 
-                if(i < 2)
-                    std::cout << ",";
-                if(i == 2)
+                std::cout << ",";
+
+                if(i == 2) {
+                    if(output[0].second != -1 && output[0].first.size() != 0) {
+                        if(output[1].second != -1)
+                            std::cout << std::fixed << std::setprecision(6) << output[1].first.size()/(double)output[0].first.size();
+                        else
+                            std::cout << "N/A";
+
+                        std::cout << ",";
+
+                        if(output[2].second != -1)
+                            std::cout << std::fixed << std::setprecision(6) << output[2].first.size()/(double)output[0].first.size();
+                        else 
+                            std::cout << "N/A";
+                    } else {
+                        std::cout << "N/A" << "," << "N/A";
+                    }
                     std::cout << std::endl;
+                }
             } else {
                 std::cout << ALGO[i] << ": ";
 
-		if(output[i].second == -1) {
-		    
-		    std::cout << "timeout" << std::endl;
+                if(output[i].second == -1) {
+                    std::cout << "timeout" << std::endl;
+                } else {
+            
+                    std::sort(output[i].first.begin(), output[i].first.end());
+                    for(size_t j = 0; j < output[i].first.size(); j++) {
+                        std::cout << output[i].first[j];
 
-		} else {
-		
-		    std::sort(output[i].first.begin(), output[i].first.end());
-		    for(size_t j = 0; j < output[i].first.size(); j++) {
-		        std::cout << output[i].first[j];
-
-		        if (j < output[i].first.size() - 1) {
-		    	    std::cout << ",";
-			}
-		    }
-		    std::cout << std::endl;
+                        if (j < output[i].first.size() - 1) {
+                            std::cout << ",";
+                        }
+                    }
+                    std::cout << std::endl;
                 }
             }
         }
