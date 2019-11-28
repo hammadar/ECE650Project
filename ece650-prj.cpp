@@ -203,13 +203,13 @@ std::array<std::pair<std::vector<int>, double>, 3> process_in_parallel(const Gra
     ctx.count = 0;
     ctx.g = g;
     
-    void* (*thread_run[])(void*) = { watchdog_thread, cnf_sat_vc_thread, approx_vc_1_thread, approx_vc_2_thread };
-    for (int i = 0; i < 4; i++) {
+    void* (*thread_run[])(void*) = { watchdog_thread, /*cnf_sat_vc_thread,*/ approx_vc_1_thread, approx_vc_2_thread };
+    for (int i = 0; i < 3; i++) {
         pthread_create(&ctx.thread[i], NULL, thread_run[i], (void *)&ctx);
     }
 
     std::array<std::pair<std::vector<int>, double>, 3> output = {};
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
         
         void * retptr;
         pthread_join(ctx.thread[i], &retptr);
